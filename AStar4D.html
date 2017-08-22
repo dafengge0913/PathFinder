@@ -1,0 +1,269 @@
+<html>
+
+<head>
+
+    <script>
+        const POINT_TYPE_NORMAL = 0
+        const POINT_TYPE_BLOCK = 1
+        const POINT_TYPE_START = 2
+        const POINT_TYPE_END = 3
+
+        function main() {
+            var map = init()
+
+            console.log("init")
+            console.log(map)
+            console.log("init end")
+
+            var end = find(map)
+            if (!end) {
+                alert("path not found!")
+                return
+            }
+
+            var p = end
+            while (p.parent) {
+                p.color("#FF00FF")
+                console.log("path:" + p.x + "," + p.y)
+                p = p.parent
+            }
+
+        }
+
+        // var rowMap = [
+        //     [0, 0, 0, 0, 0],
+        //     [0, 0, 1, 0, 0],
+        //     [0, 2, 1, 3, 0],
+        //     [0, 0, 1, 1, 0],
+        //     [0, 0, 0, 0, 0],
+        // ]
+
+        var rowMap = [
+            [2, 0, 0, 0, 0],
+            [0, 0, 1, 3, 0],
+            [0, 0, 1, 0, 0],
+            [0, 0, 1, 1, 0],
+            [0, 0, 0, 0, 0],
+        ]
+
+        function Map(points, start, end) {
+            this.points = points
+            this.start = start
+            this.end = end
+
+            // 获取相邻节点
+            this.neighbor = function (p) {
+                var ns = new Array()
+                var avlPoints = [
+                    [p.x, p.y + 1],
+                    [p.x, p.y - 1],
+                    [p.x + 1, p.y],
+                    [p.x - 1, p.y]
+                ]
+                avlPoints.forEach(function (value) {
+                    var x = value[0]
+                    var y = value[1]
+                    if (validPoint(x, y)) {
+                        ns.push(points[x][y])
+                    }
+                })
+                return ns
+            }
+
+            function validPoint(x, y) {
+                if (y >= 0 && y < points.length && x >= 0 && x < points[y].length) {
+                    return !points[x][y].isClosed() && points[x][y].type != POINT_TYPE_BLOCK && points[x][y].type != POINT_TYPE_START
+                }
+                return false
+            }
+        }
+
+        function Point(x, y, type, doc) {
+            this.x = x
+            this.y = y
+            this.doc = doc
+            this.type = type
+
+            var closed = false
+
+            var parent
+            var f
+            var g
+            var h
+
+            // 关闭节点
+            this.close = function () {
+                this.color("#00FFFF")
+                closed = true
+            }
+
+            this.isClosed = function () {
+                return closed
+            }
+
+            this.color = function (rgb) {
+                if (type == POINT_TYPE_NORMAL) {
+                    doc.style.backgroundColor = rgb
+                }
+            }
+        }
+
+        function OpenList(map) {
+
+            this.map = map
+            var data = new Array()
+
+            this.add = function (p, origin) {
+                if (p.closed) {
+                    return
+                }
+                if (has(p)) {
+                    var newG = parent.g + manhattanDistance(p, origin)
+                    if (p.g > newG) {
+                        // 如果通过origin走 g值更低 那么将点的parent设为origin
+                        p.g = newG
+                        p.parent = origin
+                        // h值不变
+                        p.f = calF(p)
+                    }
+
+                } else {
+                    p.g = calG(p)
+                    p.h = calH(p)
+                    p.f = calF(p)
+                    p.parent = origin
+                    data.push(p)
+                }
+
+
+            }
+
+            function has(p) {
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i] == p) {
+                        return true
+                    }
+                }
+                return false
+            }
+
+            // 计算从起点到点p的耗费
+            function calG(p) {
+                return manhattanDistance(map.start, p)
+            }
+
+            // 计算从终点到点p的耗费
+            function calH(p) {
+                return manhattanDistance(map.end, p)
+            }
+
+            function calF(p) {
+                return p.g + p.h
+            }
+
+            this.length = function () {
+                return data.length
+            }
+
+            this.minFPoint = function () {
+                var minP
+                for (var i = 0; i < data.length; i++) {
+                    var p = data[i]
+                    if (!minP) {
+                        minP = p
+                        continue
+                    }
+                    if (p.f < minP) {
+                        minP = p
+                    }
+                }
+                return minP
+            }
+
+            this.remove = function (p) {
+                for (var i = 0; i < data.length; i++) {
+                    if (data[i] == p) {
+                        data.splice(i, 1)
+                        return
+                    }
+                }
+            }
+        }
+
+        // 计算两点间的曼哈顿距离
+        function manhattanDistance(p1, p2) {
+            return Math.abs(p1.x - p2.x) + Math.abs(p1.y - p2.y)
+        }
+
+        function find(map) {
+            var openList = new OpenList(map)
+            openList.add(map.start)
+            while (openList.length() > 0) {
+                var p = openList.minFPoint()
+                openList.remove(p)
+                p.close()
+                if (p.type == POINT_TYPE_END) {
+                    return p
+                }
+                var ns = map.neighbor(p)
+                for (var i = 0; i < ns.length; i++) {
+                    var np = ns[i]
+                    openList.add(np, p)
+                    np.color("#FFFF00")
+                }
+            }
+            return null
+        }
+
+        function init() {
+            var start
+            var end
+            var points = new Array()
+            document.write("<table cellspacing='0' border='1'>")
+            for (var i = 0; i < rowMap.length; i++) {
+                //points[i] = new Array()
+                document.write("<tr>")
+                for (var j = 0; j < rowMap[i].length; j++) {
+                    var id = "x-" + j + "-y-" + i
+                    document.write("<td id='" + id + "'>")
+                    var type = rowMap[i][j]
+                    document.write(type)
+                    // y轴对应一维数组 x轴对应二维
+                    var p = new Point(j, i, type, document.getElementById(id))
+                    switch (type) {
+                        case POINT_TYPE_BLOCK: p.doc.style.backgroundColor = "#FF0000"
+                            break
+                        case POINT_TYPE_START: p.doc.style.backgroundColor = "#00FF00"
+                            start = p
+                            break
+                        case POINT_TYPE_END: p.doc.style.backgroundColor = "#0000FF"
+                            end = p
+                            break
+                    }
+                    if (!points[j]) {
+                        points[j] = new Array()
+                    }
+                    points[j][i] = p
+                    document.write("</td>")
+                }
+                document.write("</tr>")
+            }
+            document.write("</table>")
+            return new Map(points, start, end)
+        }
+
+        main()
+    </script>
+
+    <style>
+        td {
+            width: 50px;
+            height: 50px;
+        }
+    </style>
+
+</head>
+
+<body></body>
+
+</html>

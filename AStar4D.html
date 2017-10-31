@@ -125,7 +125,7 @@
                     return
                 }
                 if (has(p)) {
-                    var newG = parent.g + manhattanDistance(p, origin)
+                    var newG = origin.g + manhattanDistance(p, origin)
                     if (p.g > newG) {
                         // 如果通过origin走 g值更低 那么将点的parent设为origin
                         p.g = newG
